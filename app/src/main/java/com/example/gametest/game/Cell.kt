@@ -7,7 +7,8 @@ class Cell(
     var isStarting: Boolean,
     var notes: MutableSet<Int> = mutableSetOf(),
     var cellHistory: ArrayList<Array<Int>> = ArrayList(),
-    var highlight: Boolean = false
+    var highlight: Boolean = false,
+    var hideConflicting: Array<Boolean> = Array<Boolean>(9) { false }
     ) {
     //cellHistory: 0=add, 1=delete; 0=not note, 1=note; value
 
@@ -53,7 +54,7 @@ class Cell(
         return false
     }
 
-    fun UpdateUndoNote(): Int {
+    fun updateUndoNote(): Int {
         val num = this.cellHistory.last[2]
         this.cellHistory.removeLast()
         return num

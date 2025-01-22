@@ -11,20 +11,34 @@ class SudokuGame {
 
     private var selectedRow = -1
     private var selectedCol = -1
-    private var numRemoval = 20
+    private var numRemoval = 0
     private var isTakingNotes = false
     private var highlightedNum = -1
     private var history = mutableListOf<Cell>()
+    private val gen = SudokuGenerator()
 
+    private var solvedGrid: Array<Array<Cell>> = Array(9) { Array(9) { Cell(0,0,0,false) } }
     private var startingGrid: Array<Array<Cell>> = Array(9) { Array(9) { Cell(0,0,0,false) } }
     private var grid: Array<Array<Cell>> = Array(9) { Array(9) { Cell(0,0,0,false) } }
 
     init {
-        startingGrid = setGrid(numRemoval)
-        grid = copyGrid(startingGrid)
+        solvedGrid = setGrid()
+        startingGrid = copyGrid(solvedGrid)
         selectedCellLiveData.postValue(Pair(selectedRow, selectedCol))
-        cellsLiveData.postValue(grid)
+        cellsLiveData.postValue(startingGrid)
         isTakingNotesLiveData.postValue(isTakingNotes)
+    }
+
+    fun setDifficulty(diff: String) {
+        when (diff) {
+            "Easy" -> numRemoval = 30
+            "Medium" -> numRemoval = 50
+            "Hard" -> numRemoval = 70
+        }
+        gen.removeKDigits(numRemoval)
+        startingGrid = gen.getGrid()
+        grid = copyGrid(startingGrid)
+        cellsLiveData.postValue(grid)
     }
 
     fun handleInput(number: Int) {
@@ -41,37 +55,35 @@ class SudokuGame {
         val cell = getCell(selectedRow, selectedCol)
         if (cell.isStarting) return
         if (isTakingNotes) {
-            if (cell.notes.contains(number)) {
-                cell.notes.remove(number)
-                cell.cellHistory.add(arrayOf(1,1,number))
-                history.add(Cell.copyCell(cell))
-            } else {
-                cell.notes.add(number)
-                cell.cellHistory.add(arrayOf(0,1,number))
-                history.add(Cell.copyCell(cell))
-            }
+            handleNotes(cell, number)
         } else {
             cell.value = number
+            hideConflictingNotes(number)
             if (!cell.checkCellHistory(number)) {
                 cell.cellHistory.add(arrayOf(0, 0, number))
                 history.add(Cell.copyCell(cell))
             }
         }
-        updatedCellLiveData.postValue(cell)
+        cellsLiveData.postValue(grid)
     }
 
     fun updateSelectedCell(cell: Pair<Int, Int>) {
         if (grid[cell.first][cell.second].isStarting) return
         if (highlightedNum > 0) {
             val hCell = grid[cell.first][cell.second]
-            hCell.value = highlightedNum
-
-            if (!hCell.checkCellHistory(highlightedNum)) {
-                hCell.cellHistory.add(arrayOf(0, 0, highlightedNum))
-                history.add(Cell.copyCell(hCell))
+            if(isTakingNotes) {
+                handleNotes(hCell, highlightedNum)
+            } else {
+                hCell.value = highlightedNum
+                hideConflictingNotes(highlightedNum)
+                if (!hCell.checkCellHistory(highlightedNum)) {
+                    hCell.cellHistory.add(arrayOf(0, 0, highlightedNum))
+                    history.add(Cell.copyCell(hCell))
+                }
             }
+
             highlightNumbers(hCell.value, true)
-            updatedCellLiveData.postValue(hCell)
+            cellsLiveData.postValue(grid)
             return
         }
         if (selectedRow == cell.first && selectedCol == cell.second) {
@@ -109,13 +121,16 @@ class SudokuGame {
 
         if (type == 0) {
             cell.value = cell.updateCellUndoHistory()
+            unhideConflictingNotes(undoCell.value)
             highlightNumbers(cell.value, false)
         } else if (action == 0) {
-            cell.notes.remove(cell.UpdateUndoNote())
+            cell.notes.remove(cell.updateUndoNote())
+            highlightNumbers(cell.value, false)
         } else if (action == 1) {
-            cell.notes.add(cell.UpdateUndoNote())
+            cell.notes.add(cell.updateUndoNote())
+            highlightNumbers(cell.value, true)
         }
-        updatedCellLiveData.postValue(cell)
+        cellsLiveData.postValue(grid)
     }
 
     fun restart() {
@@ -124,9 +139,40 @@ class SudokuGame {
         cellsLiveData.postValue(grid)
     }
 
-    private fun setGrid(num: Int): Array<Array<Cell>> {
-        val gen = SudokuGenerator()
-        gen.generate(num)
+    private fun hideConflictingNotes(number: Int) {
+        for (i in 0..8) {
+            for (j in 0..8) {
+                if (grid[i][j].notes.contains(number) && grid[i][j].value == 0) {
+                    grid[i][j].hideConflicting[number] = true
+                }
+            }
+        }
+    }
+
+    private fun unhideConflictingNotes(number: Int) {
+        for (i in 0..8) {
+            for (j in 0..8) {
+                if (grid[i][j].notes.contains(number)) {
+                    grid[i][j].hideConflicting[number] = false
+                }
+            }
+        }
+    }
+
+    private fun handleNotes(cell: Cell, number: Int) {
+        if (cell.notes.contains(number)) {
+            cell.notes.remove(number)
+            cell.cellHistory.add(arrayOf(1,1,number))
+            history.add(Cell.copyCell(cell))
+        } else {
+            cell.notes.add(number)
+            cell.cellHistory.add(arrayOf(0,1,number))
+            history.add(Cell.copyCell(cell))
+        }
+    }
+
+    private fun setGrid(): Array<Array<Cell>> {
+        gen.generate()
         return gen.getGrid()
     }
 
@@ -144,6 +190,8 @@ class SudokuGame {
         for (i in 0..8) {
             for (j in 0..8) {
                 if (grid[i][j].value == highlightedNum) {
+                    grid[i][j].highlight = true
+                } else if (grid[i][j].value == 0 && grid[i][j].notes.contains(highlightedNum)) {
                     grid[i][j].highlight = true
                 } else {
                     grid[i][j].highlight = false

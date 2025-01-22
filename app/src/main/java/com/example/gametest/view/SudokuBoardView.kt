@@ -96,7 +96,6 @@ class SudokuBoardView(context: Context, attributeSet: AttributeSet) : View(conte
     }
 
     private fun fillCells(canvas: Canvas) {
-        //if (selectedRow == -1 || selectedCol == -1) return
         for (row in 0..8) {
             for (col in 0..8) {
                 if (grid!![row][col].highlight) {
@@ -139,18 +138,20 @@ class SudokuBoardView(context: Context, attributeSet: AttributeSet) : View(conte
                     )
                 } else {
                     grid!![row][col].notes.forEach { note ->
-                        val valueString = note.toString()
-                        val rowInCell = (note - 1) / sqrtSize
-                        val colInCell = (note - 1) % sqrtSize
-                        noteTextPaint.getTextBounds(valueString, 0 , valueString.length, textBounds)
-                        val textWidth = noteTextPaint.measureText(valueString)
-                        val textHeight = textBounds.height()
-                        canvas.drawText(
-                            valueString,
-                            (col * cellSizePixels) + (colInCell * noteSizePixels) + noteSizePixels / 2 - textWidth / 2,
-                            (row * cellSizePixels) + (rowInCell * noteSizePixels) + noteSizePixels / 2 + textHeight / 2,
-                            noteTextPaint
-                        )
+                        if (!grid!![row][col].hideConflicting[note]) {
+                            val valueString = note.toString()
+                            val rowInCell = (note - 1) / sqrtSize
+                            val colInCell = (note - 1) % sqrtSize
+                            noteTextPaint.getTextBounds(valueString, 0 , valueString.length, textBounds)
+                            val textWidth = noteTextPaint.measureText(valueString)
+                            val textHeight = textBounds.height()
+                            canvas.drawText(
+                                valueString,
+                                (col * cellSizePixels) + (colInCell * noteSizePixels) + noteSizePixels / 2 - textWidth / 2,
+                                (row * cellSizePixels) + (rowInCell * noteSizePixels) + noteSizePixels / 2 + textHeight / 2,
+                                noteTextPaint
+                            )
+                        }
                     }
                 }
             }

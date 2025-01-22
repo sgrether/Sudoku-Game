@@ -11,10 +11,9 @@ class SudokuGenerator {
         return grid
     }
 
-    fun generate(k: Int) {
+    fun generate() {
         fillDiagonal()
         fillRemaining(0, 3)
-        removeKDigits(k)
     }
 
     private fun unUsedInBox(rowStart: Int, colStart: Int, num: Int): Boolean {
@@ -114,7 +113,7 @@ class SudokuGenerator {
         return false
     }
 
-    private fun removeKDigits(num: Int) {
+    fun removeKDigits(num: Int) {
         var k = num
         val rand = java.util.Random()
         while (k > 0) {
