@@ -15,8 +15,7 @@ import com.example.gametest.databinding.WinScreenBinding
 import com.example.gametest.game.Cell
 import com.example.gametest.viewmodel.PlaySudokuViewModel
 
-/* TODO: Setup win screen
-*        Optional: Add numbers to buttons showing how many still need to be filled
+/* TODO: Optional: Add numbers to buttons showing how many still need to be filled
 *        Optional: setup timer + scoreboard */
 
 class MainActivity : ComponentActivity(), SudokuBoardView.OnTouchListener {
@@ -36,13 +35,15 @@ class MainActivity : ComponentActivity(), SudokuBoardView.OnTouchListener {
         title = "Sudoku"
         actionBar?.setDisplayHomeAsUpEnabled(true)
 
+        winBinding = WinScreenBinding.inflate(layoutInflater)
+
         menuBinding = StartMenuBinding.inflate(layoutInflater)
         setContentView(menuBinding.root)
 
         gameBinding = SudokuGameLayoutBinding.inflate(layoutInflater)
         sudokuBoardView = gameBinding.sudokuBoardView
 
-        winBinding = WinScreenBinding.inflate(layoutInflater)
+
 
         setupObservers()
 
@@ -55,7 +56,6 @@ class MainActivity : ComponentActivity(), SudokuBoardView.OnTouchListener {
         viewModel.sudokuGame.cellsLiveData.observe(this) { updateGridUI(it) }
         viewModel.sudokuGame.isTakingNotesLiveData.observe(this) { updateNoteTakingUI(it) }
         viewModel.sudokuGame.isWinningLiveData.observe(this) { winScreen() }
-        //viewModel.sudokuGame.highlightLiveData.observe(this) { updateHighlightUI(it) }
     }
 
     private fun setupListeners() {
@@ -64,7 +64,7 @@ class MainActivity : ComponentActivity(), SudokuBoardView.OnTouchListener {
         menuBinding.newGame.setOnClickListener { newGame() }
         menuBinding.resume.setOnClickListener { resumeGame() }
 
-        winBinding.winNewGame.setOnClickListener { setContentView(menuBinding.root) }
+        winBinding.winNewGameButton.setOnClickListener { setContentView(menuBinding.root) }
 
         gameBinding.notesButton.setOnClickListener { viewModel.sudokuGame.changeNoteState() }
         gameBinding.buttonX.setOnClickListener { viewModel.sudokuGame.delete() }
@@ -109,6 +109,7 @@ class MainActivity : ComponentActivity(), SudokuBoardView.OnTouchListener {
     }
 
     private fun winScreen() {
+        viewModel.sudokuGame.isInit = false
         setContentView(winBinding.root)
     }
 
@@ -136,10 +137,6 @@ class MainActivity : ComponentActivity(), SudokuBoardView.OnTouchListener {
             gameBinding.notesButton.background.clearColorFilter()
         }
     }
-
-//    private fun updateHighlightUI(isHighlighting: Boolean) {
-//        sudokuBoardView.updateHighlightingUI(isHighlighting)
-//    }
 
     override fun onCellTouched(cell: Pair<Int, Int>) {
         viewModel.sudokuGame.updateSelectedCell(cell)

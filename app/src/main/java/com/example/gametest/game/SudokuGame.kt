@@ -8,7 +8,6 @@ class SudokuGame {
     var updatedCellLiveData = MutableLiveData<Cell>()
     var isTakingNotesLiveData = MutableLiveData<Boolean>()
     var isWinningLiveData = MutableLiveData<Boolean>()
-    //val highlightLiveData = MutableLiveData<Boolean>()
     var isInit = false
 
     private var selectedRow = -1
@@ -24,21 +23,19 @@ class SudokuGame {
     private var grid: Array<Array<Cell>> = Array(9) { Array(9) { Cell(0,0,0,false) } }
 
     init {
-        solvedGrid = setGrid()
-//        startingGrid = copyGrid(solvedGrid)
-//        selectedCellLiveData.postValue(Pair(selectedRow, selectedCol))
-//        cellsLiveData.postValue(startingGrid)
-//        isTakingNotesLiveData.postValue(isTakingNotes)
+        selectedCellLiveData.postValue(Pair(selectedRow, selectedCol))
+        cellsLiveData.postValue(startingGrid)
+        isTakingNotesLiveData.postValue(isTakingNotes)
     }
 
     fun initBoard(diff: String) {
         cleanBoard()
-        solvedGrid = setGrid()
+        solvedGrid = copyGrid(setGrid())
         setDifficulty(diff)
+        isInit = true
         selectedCellLiveData.postValue(Pair(selectedRow, selectedCol))
         cellsLiveData.postValue(startingGrid)
         isTakingNotesLiveData.postValue(isTakingNotes)
-        isInit = true
     }
 
     private fun setDifficulty(diff: String) {
@@ -48,7 +45,7 @@ class SudokuGame {
             "Hard" -> numRemoval = 60
         }
         gen.removeKDigits(numRemoval)
-        startingGrid = gen.getGrid()
+        startingGrid = copyGrid(gen.getGrid())
         grid = copyGrid(startingGrid)
     }
 
@@ -78,7 +75,7 @@ class SudokuGame {
             updateNum(cell, number)
             setConflictingNotes(cell.row, cell.col, cell.value, true)
             cellsLiveData.postValue(grid)
-            //checkWin()
+            checkWin()
         }
     }
 
@@ -90,7 +87,7 @@ class SudokuGame {
             setConflictingNotes(cell.first, cell.second, gridCell.value, true)
             highlightNumbers()
             cellsLiveData.postValue(grid)
-            //checkWin()
+            checkWin()
         } else if (selectedRow == cell.first && selectedCol == cell.second) {
             selectedRow = -1
             selectedCol = -1
