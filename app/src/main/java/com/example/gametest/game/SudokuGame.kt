@@ -6,8 +6,10 @@ class SudokuGame {
     var selectedCellLiveData = MutableLiveData<Pair<Int, Int>>()
     var cellsLiveData = MutableLiveData<Array<Array<Cell>>>()
     var updatedCellLiveData = MutableLiveData<Cell>()
-    val isTakingNotesLiveData = MutableLiveData<Boolean>()
-    val highlightLiveData = MutableLiveData<Boolean>()
+    var isTakingNotesLiveData = MutableLiveData<Boolean>()
+    var isWinningLiveData = MutableLiveData<Boolean>()
+    //val highlightLiveData = MutableLiveData<Boolean>()
+    var isInit = false
 
     private var selectedRow = -1
     private var selectedCol = -1
@@ -23,70 +25,73 @@ class SudokuGame {
 
     init {
         solvedGrid = setGrid()
-        startingGrid = copyGrid(solvedGrid)
+//        startingGrid = copyGrid(solvedGrid)
+//        selectedCellLiveData.postValue(Pair(selectedRow, selectedCol))
+//        cellsLiveData.postValue(startingGrid)
+//        isTakingNotesLiveData.postValue(isTakingNotes)
+    }
+
+    fun initBoard(diff: String) {
+        cleanBoard()
+        solvedGrid = setGrid()
+        setDifficulty(diff)
         selectedCellLiveData.postValue(Pair(selectedRow, selectedCol))
         cellsLiveData.postValue(startingGrid)
         isTakingNotesLiveData.postValue(isTakingNotes)
+        isInit = true
     }
 
-    fun setDifficulty(diff: String) {
+    private fun setDifficulty(diff: String) {
         when (diff) {
             "Easy" -> numRemoval = 30
             "Medium" -> numRemoval = 50
-            "Hard" -> numRemoval = 70
+            "Hard" -> numRemoval = 60
         }
         gen.removeKDigits(numRemoval)
         startingGrid = gen.getGrid()
         grid = copyGrid(startingGrid)
-        cellsLiveData.postValue(grid)
+    }
+
+    private fun cleanBoard() {
+        gen.clearGrid()
+        selectedRow = -1
+        selectedCol = -1
+        highlightedNum = -1
+        history.clear()
+        isTakingNotes = false
     }
 
     fun handleInput(number: Int) {
         if (selectedRow == -1 || selectedCol == -1) {
             if (highlightedNum != number) {
                 highlightedNum = number
-                highlightNumbers(highlightedNum, true)
+                highlightNumbers()
+                cellsLiveData.postValue(grid)
             } else {
                 highlightedNum = -1
-                highlightNumbers(highlightedNum, false)
+                highlightNumbers()
+                cellsLiveData.postValue(grid)
             }
-            return
-        }
-        val cell = getCell(selectedRow, selectedCol)
-        if (cell.isStarting) return
-        if (isTakingNotes) {
-            handleNotes(cell, number)
         } else {
-            cell.value = number
-            hideConflictingNotes(number)
-            if (!cell.checkCellHistory(number)) {
-                cell.cellHistory.add(arrayOf(0, 0, number))
-                history.add(Cell.copyCell(cell))
-            }
+            val cell = getCell(selectedRow, selectedCol)
+            if (cell.isStarting) return
+            updateNum(cell, number)
+            setConflictingNotes(cell.row, cell.col, cell.value, true)
+            cellsLiveData.postValue(grid)
+            //checkWin()
         }
-        cellsLiveData.postValue(grid)
     }
 
     fun updateSelectedCell(cell: Pair<Int, Int>) {
         if (grid[cell.first][cell.second].isStarting) return
         if (highlightedNum > 0) {
-            val hCell = grid[cell.first][cell.second]
-            if(isTakingNotes) {
-                handleNotes(hCell, highlightedNum)
-            } else {
-                hCell.value = highlightedNum
-                hideConflictingNotes(highlightedNum)
-                if (!hCell.checkCellHistory(highlightedNum)) {
-                    hCell.cellHistory.add(arrayOf(0, 0, highlightedNum))
-                    history.add(Cell.copyCell(hCell))
-                }
-            }
-
-            highlightNumbers(hCell.value, true)
+            val gridCell = getCell(cell.first, cell.second)
+            updateNum(gridCell, highlightedNum)
+            setConflictingNotes(cell.first, cell.second, gridCell.value, true)
+            highlightNumbers()
             cellsLiveData.postValue(grid)
-            return
-        }
-        if (selectedRow == cell.first && selectedCol == cell.second) {
+            //checkWin()
+        } else if (selectedRow == cell.first && selectedCol == cell.second) {
             selectedRow = -1
             selectedCol = -1
             selectedCellLiveData.postValue(Pair(selectedRow, selectedCol))
@@ -114,23 +119,26 @@ class SudokuGame {
     fun undo() {
         if (history.size == 0) return
         val undoCell = history.removeLast()
-        val cell = getCell(undoCell.row, undoCell.col)
-        if (cell.cellHistory.size == 0) return
+        val gridCell = getCell(undoCell.row, undoCell.col)
+        if (gridCell.cellHistory.size == 0) return
         val action = undoCell.cellHistory.last[0]
         val type = undoCell.cellHistory.last[1]
 
         if (type == 0) {
-            cell.value = cell.updateCellUndoHistory()
-            unhideConflictingNotes(undoCell.value)
-            highlightNumbers(cell.value, false)
+            setConflictingNotes(gridCell.row, gridCell.col, gridCell.value, false)
+            gridCell.value = gridCell.updateCellUndoHistory()
+            highlightNumbers()
+            cellsLiveData.postValue(grid)
         } else if (action == 0) {
-            cell.notes.remove(cell.updateUndoNote())
-            highlightNumbers(cell.value, false)
+            gridCell.notes.remove(gridCell.updateUndoNote())
+            highlightNumbers()
+            cellsLiveData.postValue(grid)
         } else if (action == 1) {
-            cell.notes.add(cell.updateUndoNote())
-            highlightNumbers(cell.value, true)
+            gridCell.notes.add(gridCell.updateUndoNote())
+            highlightNumbers()
+            cellsLiveData.postValue(grid)
         }
-        cellsLiveData.postValue(grid)
+
     }
 
     fun restart() {
@@ -139,22 +147,14 @@ class SudokuGame {
         cellsLiveData.postValue(grid)
     }
 
-    private fun hideConflictingNotes(number: Int) {
-        for (i in 0..8) {
-            for (j in 0..8) {
-                if (grid[i][j].notes.contains(number) && grid[i][j].value == 0) {
-                    grid[i][j].hideConflicting[number] = true
-                }
-            }
-        }
-    }
-
-    private fun unhideConflictingNotes(number: Int) {
-        for (i in 0..8) {
-            for (j in 0..8) {
-                if (grid[i][j].notes.contains(number)) {
-                    grid[i][j].hideConflicting[number] = false
-                }
+    private fun updateNum(cell: Cell, number: Int) {
+        if (isTakingNotes) {
+            handleNotes(cell, number)
+        } else {
+            cell.value = number
+            if (!cell.checkCellHistory(number)) {
+                cell.cellHistory.add(arrayOf(0, 0, number))
+                history.add(Cell.copyCell(cell))
             }
         }
     }
@@ -168,6 +168,20 @@ class SudokuGame {
             cell.notes.add(number)
             cell.cellHistory.add(arrayOf(0,1,number))
             history.add(Cell.copyCell(cell))
+        }
+    }
+
+    private fun setConflictingNotes(row: Int, col: Int, number: Int, bool: Boolean) {
+        for (i in 0..8) {
+            for (j in 0..8) {
+                if (grid[i][j].notes.contains(number) && grid[i][j].value == 0) {
+                    if (grid[i][j].row == row || grid[i][j].col == col) {
+                        grid[i][j].hideConflicting[number] = bool
+                    } else if (grid[i][j].row / 3 == row / 3 && grid[i][j].col / 3 == col / 3) {
+                        grid[i][j].hideConflicting[number] = bool
+                    }
+                }
+            }
         }
     }
 
@@ -186,20 +200,32 @@ class SudokuGame {
         return newGrid
     }
 
-    private fun highlightNumbers(num: Int, bool: Boolean) {
+    private fun highlightNumbers() {
         for (i in 0..8) {
             for (j in 0..8) {
                 if (grid[i][j].value == highlightedNum) {
                     grid[i][j].highlight = true
-                } else if (grid[i][j].value == 0 && grid[i][j].notes.contains(highlightedNum)) {
+                } else if (grid[i][j].value == 0 && grid[i][j].notes.contains(highlightedNum) && !grid[i][j].hideConflicting[highlightedNum]) {
                     grid[i][j].highlight = true
                 } else {
                     grid[i][j].highlight = false
                 }
             }
         }
-        highlightLiveData.postValue(bool)
-        cellsLiveData.postValue(grid)
+    }
+
+    private fun checkWin(): Boolean {
+        for (i in 0..8) {
+            for (j in 0..8) {
+                if (grid[i][j].value == 0) {
+                    return false
+                } else if (grid[i][j].value != solvedGrid[i][j].value) {
+                    return false
+                }
+            }
+        }
+        isWinningLiveData.postValue(true)
+        return true
     }
 
     private fun getCell(row: Int, col: Int): Cell {

@@ -11,14 +11,11 @@ import androidx.activity.viewModels
 import com.example.gametest.R
 import com.example.gametest.databinding.StartMenuBinding
 import com.example.gametest.databinding.SudokuGameLayoutBinding
+import com.example.gametest.databinding.WinScreenBinding
 import com.example.gametest.game.Cell
 import com.example.gametest.viewmodel.PlaySudokuViewModel
 
 /* TODO: Setup win screen
-*        Setup board generation for new game
-*        Add back arrow button to main menu
-*        Clear notes from conflicting squares when number is entered (in progress)
-*           highlighting still messed up a bit and it's hiding all same notes, not just the conflicting notes
 *        Optional: Add numbers to buttons showing how many still need to be filled
 *        Optional: setup timer + scoreboard */
 
@@ -26,6 +23,7 @@ class MainActivity : ComponentActivity(), SudokuBoardView.OnTouchListener {
 
     private lateinit var gameBinding: SudokuGameLayoutBinding
     private lateinit var menuBinding: StartMenuBinding
+    private lateinit var winBinding: WinScreenBinding
     private lateinit var sudokuBoardView: SudokuBoardView
     private lateinit var numberButtons: List<Button>
     private val viewModel: PlaySudokuViewModel by viewModels()
@@ -44,6 +42,8 @@ class MainActivity : ComponentActivity(), SudokuBoardView.OnTouchListener {
         gameBinding = SudokuGameLayoutBinding.inflate(layoutInflater)
         sudokuBoardView = gameBinding.sudokuBoardView
 
+        winBinding = WinScreenBinding.inflate(layoutInflater)
+
         setupObservers()
 
         setupListeners()
@@ -54,14 +54,17 @@ class MainActivity : ComponentActivity(), SudokuBoardView.OnTouchListener {
         viewModel.sudokuGame.updatedCellLiveData.observe(this) { updateCellsUI(it) }
         viewModel.sudokuGame.cellsLiveData.observe(this) { updateGridUI(it) }
         viewModel.sudokuGame.isTakingNotesLiveData.observe(this) { updateNoteTakingUI(it) }
-        viewModel.sudokuGame.highlightLiveData.observe(this) { updateHighlightUI(it) }
+        viewModel.sudokuGame.isWinningLiveData.observe(this) { winScreen() }
+        //viewModel.sudokuGame.highlightLiveData.observe(this) { updateHighlightUI(it) }
     }
 
     private fun setupListeners() {
         sudokuBoardView.registerListener(this)
 
-        menuBinding.newGame.setOnClickListener { changeScreen() }
-        //menuBinding.resume.setOnClickListener { setContentView(sudokuBoardView.rootView) }
+        menuBinding.newGame.setOnClickListener { newGame() }
+        menuBinding.resume.setOnClickListener { resumeGame() }
+
+        winBinding.winNewGame.setOnClickListener { setContentView(menuBinding.root) }
 
         gameBinding.notesButton.setOnClickListener { viewModel.sudokuGame.changeNoteState() }
         gameBinding.buttonX.setOnClickListener { viewModel.sudokuGame.delete() }
@@ -92,9 +95,26 @@ class MainActivity : ComponentActivity(), SudokuBoardView.OnTouchListener {
         }
     }
 
-    private fun changeScreen() {
-        viewModel.sudokuGame.setDifficulty(difficulty)
-        setContentView(sudokuBoardView.rootView)
+    private fun newGame() {
+        if (difficulty != "") {
+            viewModel.sudokuGame.initBoard(difficulty)
+            setContentView(sudokuBoardView.rootView)
+        }
+    }
+
+    private fun resumeGame() {
+        if (viewModel.sudokuGame.isInit) {
+            setContentView(sudokuBoardView.rootView)
+        }
+    }
+
+    private fun winScreen() {
+        setContentView(winBinding.root)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        setContentView(menuBinding.root)
+        return true
     }
 
     private fun updateCellsUI(cell: Cell) {
@@ -117,9 +137,9 @@ class MainActivity : ComponentActivity(), SudokuBoardView.OnTouchListener {
         }
     }
 
-    private fun updateHighlightUI(isHighlighting: Boolean) {
-        sudokuBoardView.updateHighlightingUI(isHighlighting)
-    }
+//    private fun updateHighlightUI(isHighlighting: Boolean) {
+//        sudokuBoardView.updateHighlightingUI(isHighlighting)
+//    }
 
     override fun onCellTouched(cell: Pair<Int, Int>) {
         viewModel.sudokuGame.updateSelectedCell(cell)

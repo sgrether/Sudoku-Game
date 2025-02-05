@@ -128,4 +128,8 @@ class SudokuGenerator {
             }
         }
     }
+
+    fun clearGrid() {
+        grid = Array(9) { Array(9) { Cell(0,0,0,true) }}
+    }
 }

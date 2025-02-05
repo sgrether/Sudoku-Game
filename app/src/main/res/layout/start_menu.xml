@@ -49,13 +49,13 @@
         android:layout_marginTop="50dp"
         android:text="New Game" />
 
-<!--    <Button-->
-<!--        android:id="@+id/resume"-->
-<!--        android:layout_width="wrap_content"-->
-<!--        android:layout_height="wrap_content"-->
-<!--        android:background="@color/purple_700"-->
-<!--        android:layout_marginStart="165dp"-->
-<!--        android:layout_marginTop="10dp"-->
-<!--        android:text="Resume"/>-->
+    <Button
+        android:id="@+id/resume"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@color/purple_700"
+        android:layout_marginStart="165dp"
+        android:layout_marginTop="10dp"
+        android:text="Resume"/>
 
 </LinearLayout>
